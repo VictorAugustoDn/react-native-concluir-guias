@@ -1,4 +1,4 @@
-package com.preeternal.scanner
+package com.wisesystems.concluirguias
 
 import com.facebook.react.BaseReactPackage
 import com.facebook.react.bridge.NativeModule
