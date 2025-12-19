@@ -16,7 +16,7 @@ Pod::Spec.new do |s|
     'DEFINES_MODULE' => 'YES',
     'SWIFT_INSTALL_OBJC_HEADER' => 'YES'
   }
-  s.source       = { :git => "https://github.com/Preeternal/react-native-document-scanner-plugin.git", :tag => "#{s.version}" }
+  s.source       = { :git => "https://github.com/VictorAugustoDn/react-native-concluir-guias.git", :tag => "#{s.version}" }
   s.source_files = "ios/**/*.{h,m,mm,swift}"
   s.private_header_files = "ios/**/*.h"
 

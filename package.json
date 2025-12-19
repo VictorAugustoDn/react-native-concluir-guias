@@ -1,7 +1,7 @@
 {
-  "name": "@preeternal/react-native-document-scanner-plugin",
+  "name": "@wisesystems/react-native-concluir-guias",
   "version": "0.2.2",
-  "description": "Fork of react-native-document-scanner-plugin with New Architecture (TurboModule) support and active maintenance.",
+  "description": "Fork do react-native-document-scanner-plugin adaptado para ler o código de barras das guias.",
   "main": "./lib/module/index.js",
   "types": "./lib/typescript/src/index.d.ts",
   "exports": {
@@ -32,7 +32,7 @@
     "!**/.*"
   ],
   "scripts": {
-    "example": "yarn workspace @preeternal/react-native-document-scanner-plugin-example",
+    "example": "yarn workspace @wisesystems/react-native-concluir-guias-example",
     "test": "jest",
     "typecheck": "tsc",
     "lint": "eslint \"**/*.{js,ts,tsx}\"",
@@ -47,14 +47,14 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Preeternal/react-native-document-scanner-plugin.git"
+    "url": "git+https://github.com/VictorAugustoDn/react-native-concluir-guias.git"
   },
-  "author": "Preeternal <preeternal@gmail.com> (https://github.com/Preeternal)",
+  "author": "Victor Augusto <victor.augusto@wises.com.br> (https://github.com/VictorAugustoDn)",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/Preeternal/react-native-document-scanner-plugin/issues"
+    "url": "https://github.com/VictorAugustoDn/react-native-concluir-guias/issues"
   },
-  "homepage": "https://github.com/Preeternal/react-native-document-scanner-plugin#readme",
+  "homepage": "https://github.com/VictorAugustoDn/react-native-concluir-guias#readme",
   "publishConfig": {
     "registry": "https://registry.npmjs.org/"
   },
