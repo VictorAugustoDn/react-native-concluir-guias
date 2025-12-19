@@ -24,10 +24,11 @@ import com.google.mlkit.vision.documentscanner.GmsDocumentScannerOptions
 import com.google.mlkit.vision.documentscanner.GmsDocumentScanning
 import com.google.mlkit.vision.documentscanner.GmsDocumentScanningResult
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.suspendCoroutine
+import kotlin.coroutines.suspendCoroutine
+import kotlin.coroutines.resume
 import java.io.InputStream
 import java.lang.ref.WeakReference
-import kotlin.coroutines.resume
+
 
 @ReactModule(name = DocumentScannerModule.NAME)
 class DocumentScannerModule(reactContext: ReactApplicationContext) :
