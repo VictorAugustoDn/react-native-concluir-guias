@@ -102,7 +102,7 @@ public class DocScanner: NSObject, VNDocumentCameraViewControllerDelegate {
         // loop through all scanned pages
         for pageNumber in 0...scan.pageCount - 1 {
             
-            let scannedImage: UIImage = scan.imageOfPage(at: pageNumber)
+            var scannedImage: UIImage = scan.imageOfPage(at: pageNumber)
             
             // 1. Tenta na imagem original
             var barcodeValue = scannedImage.findITFBarcodeInTopRightAreaSync()
@@ -110,23 +110,33 @@ public class DocScanner: NSObject, VNDocumentCameraViewControllerDelegate {
             // 2. Se não achou, tenta girar 90 graus (Simulando foto Landscape)
             if barcodeValue == nil {
                 if let rotatedImage = scannedImage.rotate(radians: .pi/2) { // 90 graus
-                    barcodeValue = rotatedImage.findITFBarcodeInTopRightAreaSync()
-                    // Opcional: Se achou aqui, talvez você queira salvar a rotatedImage no lugar da scannedImage?
-                    // scannedImage = rotatedImage (se for var)
+                    if let foundBarcode = rotatedImage.findITFBarcodeInTopRightAreaSync() {
+                        barcodeValue = foundBarcode
+                        // MUDANÇA 2: Atualizamos a imagem principal para ser a rotacionada
+                        scannedImage = rotatedImage 
+                    }
                 }
             }
 
             // 3. Se ainda não achou, tenta girar -90 graus (Lado oposto)
             if barcodeValue == nil {
                 if let rotatedImage = scannedImage.rotate(radians: -.pi/2) { // -90 graus
-                    barcodeValue = rotatedImage.findITFBarcodeInTopRightAreaSync()
+                    if let foundBarcode = rotatedImage.findITFBarcodeInTopRightAreaSync() {
+                        barcodeValue = foundBarcode
+                        // MUDANÇA 2: Atualiza a imagem principal
+                        scannedImage = rotatedImage
+                    }
                 }
             }
 
             // 4. Se ainda não achou, tenta 180 graus (De ponta cabeça - acontece muito com guia na mesa)
             if barcodeValue == nil {
                 if let rotatedImage = scannedImage.rotate(radians: .pi) { // 180 graus
-                    barcodeValue = rotatedImage.findITFBarcodeInTopRightAreaSync()
+                    if let foundBarcode = rotatedImage.findITFBarcodeInTopRightAreaSync() {
+                        barcodeValue = foundBarcode
+                        // MUDANÇA 2: Atualiza a imagem principal
+                        scannedImage = rotatedImage
+                    }
                 }
             }
 

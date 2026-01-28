@@ -28,6 +28,8 @@ import kotlin.coroutines.suspendCoroutine
 import kotlin.coroutines.resume
 import java.io.InputStream
 import java.lang.ref.WeakReference
+import androidx.exifinterface.media.ExifInterface
+import android.graphics.Matrix
 
 
 @ReactModule(name = DocumentScannerModule.NAME)
@@ -150,10 +152,48 @@ class DocumentScannerModule(reactContext: ReactApplicationContext) :
 
     private fun loadBitmapFromUri(activity: Activity, uri: Uri): Bitmap? {
         return try {
-            activity.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it) }
+            // 1. Carrega o Bitmap original (pode vir deitado)
+            val bitmap = activity.contentResolver.openInputStream(uri)?.use { 
+                BitmapFactory.decodeStream(it) 
+            } ?: return null
+
+            // 2. Abre um segundo stream EXCLUSIVO para ler os metadados (Exif)
+            // Precisamos abrir de novo porque o stream anterior foi consumido pelo decodeStream
+            val inputForExif = activity.contentResolver.openInputStream(uri)
+            if (inputForExif != null) {
+                val exif = ExifInterface(inputForExif)
+                val orientation = exif.getAttributeInt(
+                    ExifInterface.TAG_ORIENTATION,
+                    ExifInterface.ORIENTATION_NORMAL
+                )
+                inputForExif.close()
+
+                // 3. Rotaciona se necessário
+                return rotateBitmapIfRequired(bitmap, orientation)
+            }
+
+            return bitmap
         } catch (e: Exception) {
+            e.printStackTrace()
             null
         }
+    }
+
+    private fun rotateBitmapIfRequired(bitmap: Bitmap, orientation: Int): Bitmap {
+        val matrix = Matrix()
+        
+        when (orientation) {
+            ExifInterface.ORIENTATION_ROTATE_90 -> matrix.postRotate(90f)
+            ExifInterface.ORIENTATION_ROTATE_180 -> matrix.postRotate(180f)
+            ExifInterface.ORIENTATION_ROTATE_270 -> matrix.postRotate(270f)
+            else -> return bitmap // Nenhuma rotação necessária
+        }
+
+        // Cria um novo bitmap rotacionado. 
+        // O Garbage Collector cuidará do bitmap antigo, ou você pode dar recycle() explicitamente se memória for crítica.
+        return Bitmap.createBitmap(
+            bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true
+        )
     }
 
     private fun calculateBarcodeRoi(width: Int, height: Int): Rect {
