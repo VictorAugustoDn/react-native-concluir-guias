@@ -74,12 +74,9 @@ def kotlin_version = getExtOrDefault("kotlinVersion")
 dependencies {
   implementation "com.facebook.react:react-android"
   implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
-  // Mudar de beta1 para a versão estável 16.0.0
-  implementation "com.google.android.gms:play-services-mlkit-document-scanner:16.0.0" 
-  
-  // As dependências do Barcode e Coroutines (que adicionamos antes)
-  implementation 'com.google.mlkit:barcode-scanning:17.2.0' 
-  implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3" 
-  implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.6.2'
+  implementation "com.google.android.gms:play-services-mlkit-document-scanner:16.0.0"
+  implementation 'com.google.mlkit:barcode-scanning:17.3.0' 
+  implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2" 
+  implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.10.0'
   implementation "androidx.exifinterface:exifinterface:1.4.2"
 }

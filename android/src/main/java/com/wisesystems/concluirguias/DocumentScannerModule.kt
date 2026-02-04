@@ -26,10 +26,14 @@ import com.google.mlkit.vision.documentscanner.GmsDocumentScanningResult
 import kotlinx.coroutines.launch
 import kotlin.coroutines.suspendCoroutine
 import kotlin.coroutines.resume
+import kotlinx.coroutines.Dispatchers
 import java.io.InputStream
 import java.lang.ref.WeakReference
 import androidx.exifinterface.media.ExifInterface
 import android.graphics.Matrix
+import java.io.File
+import java.io.FileOutputStream
+import android.content.Context
 
 
 @ReactModule(name = DocumentScannerModule.NAME)
@@ -42,9 +46,9 @@ class DocumentScannerModule(reactContext: ReactApplicationContext) :
         
         // --- CONFIGURAÇÕES FIXAS DO BARCODE ---
         private const val BARCODE_FORMAT = Barcode.FORMAT_ITF
-        private const val LARGURA_CORTE_PERCENTUAL = 20
-        private const val ALTURA_CORTE_PERCENTUAL = 16
-        private const val MARGEM_CANTO_PERCENTUAL = 2
+        private const val LARGURA_CORTE_PERCENTUAL = 25
+        private const val ALTURA_CORTE_PERCENTUAL = 20
+        private const val MARGEM_CANTO_PERCENTUAL = 3
     }
 
     override fun getName(): String = NAME
@@ -110,23 +114,81 @@ class DocumentScannerModule(reactContext: ReactApplicationContext) :
                 val pages = docResult?.pages
 
                 if (pages != null && pages.isNotEmpty()) {
-                    // Usamos a lifecycleScope da activity para processar o barcode
-                    activity.lifecycleScope.launch {
+                    activity.lifecycleScope.launch(Dispatchers.IO) { 
+                        var index = 0
                         for (page in pages) {
-                            val uri = page.imageUri ?: continue
-                            val bitmap = loadBitmapFromUri(activity, uri)
+                            val originalUri = page.imageUri ?: continue
+                            
+                            // 1. Carrega o bitmap base
+                            var bitmap = loadBitmapFromUri(activity, originalUri) 
                             var barcodeValue: String? = null
+                            var finalUriString = originalUri.toString() 
 
                             if (bitmap != null) {
-                                val roi = calculateBarcodeRoi(bitmap.width, bitmap.height)
+                                // --- TENTATIVA 1: Original ---
+                                var roi = calculateBarcodeRoi(bitmap.width, bitmap.height)
                                 barcodeValue = decodeBarcodeWithMLKit(bitmap, roi)
+
+                                // --- TENTATIVA 2: Gira 90 graus (Horário) ---
+                                if (barcodeValue == null) {
+                                    val rotated90 = rotateBitmap(bitmap, 90f)
+                                    val roi90 = calculateBarcodeRoi(rotated90.width, rotated90.height)
+                                    val result90 = decodeBarcodeWithMLKit(rotated90, roi90)
+                                    
+                                    if (result90 != null) {
+                                        barcodeValue = result90
+                                        bitmap = rotated90 // Atualiza o bitmap oficial
+                                    }
+                                }
+
+                                // --- TENTATIVA 3: Gira -90 graus (Anti-horário) ---
+                                // Exatamente como no iOS: .rotate(radians: -.pi/2)
+                                if (barcodeValue == null) {
+                                    val rotatedMinus90 = rotateBitmap(bitmap, -90f) 
+                                    val roiMinus90 = calculateBarcodeRoi(rotatedMinus90.width, rotatedMinus90.height)
+                                    val resultMinus90 = decodeBarcodeWithMLKit(rotatedMinus90, roiMinus90)
+                                    
+                                    if (resultMinus90 != null) {
+                                        barcodeValue = resultMinus90
+                                        bitmap = rotatedMinus90 // Atualiza o bitmap oficial
+                                    }
+                                }
+                                
+                                // --- TENTATIVA 4: Gira 180 graus (Ponta Cabeça) ---
+                                if (barcodeValue == null) {
+                                    val rotated180 = rotateBitmap(bitmap, 180f)
+                                    val roi180 = calculateBarcodeRoi(rotated180.width, rotated180.height)
+                                    val result180 = decodeBarcodeWithMLKit(rotated180, roi180)
+                                    
+                                    if (result180 != null) {
+                                        barcodeValue = result180
+                                        bitmap = rotated180 // Atualiza o bitmap oficial
+                                    }
+                                }
+                                
+                                // --- CORREÇÃO FINAL DE FORMATO (Retaguarda) ---
+                                // Se não achou nada, mas a imagem final ainda está "deitada" (Landscape),
+                                // forçamos 90 graus para o Backend receber em pé (padrão A4).
+                                if (barcodeValue == null && bitmap.width > bitmap.height) {
+                                     bitmap = rotateBitmap(bitmap, 90f)
+                                }
+
+                                // 3. SALVAMENTO: Salva o bitmap vencedor
+                                val timestamp = System.currentTimeMillis()
+                                val newPath = saveImageToCache(activity, bitmap, "scan_${timestamp}_$index")
+                                
+                                if (newPath != null) {
+                                    finalUriString = newPath
+                                }
                             }
 
                             val resultObject = WritableNativeMap()
-                            resultObject.putString("uri", uri.toString())
+                            resultObject.putString("uri", finalUriString) 
                             resultObject.putString("barcode", barcodeValue)
                             resultObject.putBoolean("success", barcodeValue != null)
                             docScanResults.pushMap(resultObject)
+                            
+                            index++
                         }
 
                         response.putArray("scannedImages", docScanResults)
@@ -146,6 +208,13 @@ class DocumentScannerModule(reactContext: ReactApplicationContext) :
                 clearPending()
             }
         }
+    }
+
+    // Método auxiliar (Certifique-se de ter este método na classe)
+    private fun rotateBitmap(source: Bitmap, angle: Float): Bitmap {
+        val matrix = android.graphics.Matrix()
+        matrix.postRotate(angle)
+        return Bitmap.createBitmap(source, 0, 0, source.width, source.height, matrix, true)
     }
 
     // --- MÉTODOS DE PROCESSAMENTO DE IMAGEM (Vindo do seu original) ---
@@ -173,6 +242,28 @@ class DocumentScannerModule(reactContext: ReactApplicationContext) :
             }
 
             return bitmap
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    // Método para salvar o Bitmap da memória (já rotacionado) para um arquivo físico
+    private fun saveImageToCache(context: Context, bitmap: Bitmap, filename: String): String? {
+        return try {
+            val cachePath = File(context.cacheDir, "scanned_docs")
+            if (!cachePath.exists()) cachePath.mkdirs()
+
+            // Cria um arquivo novo (ex: "scan_123123.jpg")
+            val file = File(cachePath, "$filename.jpg")
+            val stream = FileOutputStream(file)
+            
+            // Comprime para JPEG (Hard Rotation acontece aqui, pois gravamos os pixels como estão na memória)
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 90, stream) // 90% de qualidade
+            stream.close()
+
+            // Retorna o caminho no formato URI file://
+            Uri.fromFile(file).toString()
         } catch (e: Exception) {
             e.printStackTrace()
             null
