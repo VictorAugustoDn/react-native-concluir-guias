@@ -6,7 +6,7 @@ import DocumentScanner, {
 } from './NativeDocumentScanner';
 
 export function scanDocument(
-  options: ScanDocumentOptions = {}
+  options: ScanDocumentOptions = { mode: 'barcode'}
 ): Promise<ScanDocumentResponse> {
   if (!options.responseType) {
     options.responseType = ResponseType.ImageFilePath;

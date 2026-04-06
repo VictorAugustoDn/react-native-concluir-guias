@@ -16,7 +16,7 @@ export interface ScanDocumentOptions {
   /**
    * Define o modo de processamento: 'barcode' ou 'ocr'
    */
-  mode: string;
+  mode?: string;
 
   /**
    * The quality of the cropped image from 0 - 100. 100 is the best quality.
