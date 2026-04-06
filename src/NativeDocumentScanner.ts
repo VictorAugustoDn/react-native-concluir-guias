@@ -2,9 +2,22 @@ import type { TurboModule } from 'react-native';
 import { TurboModuleRegistry } from 'react-native';
 
 /**
+ * Define o que o scanner deve procurar após capturar a imagem.
+ */
+export enum ScanningMode {
+  Barcode = 'barcode',
+  Ocr = 'ocr',
+}
+
+/**
  * Options for document scanning.
  */
 export interface ScanDocumentOptions {
+  /**
+   * Define o modo de processamento: 'barcode' ou 'ocr'
+   */
+  mode: string;
+
   /**
    * The quality of the cropped image from 0 - 100. 100 is the best quality.
    * @default 100
@@ -54,9 +67,28 @@ export enum ScanDocumentResponseStatus {
   Cancel = 'cancel',
 }
 
+/**
+ * Estrutura de cada página escaneada.
+ * Mudamos de 'string' para 'object' para comportar os novos dados.
+ */
+export type ScannedImage = {
+  uri: string;
+  success: boolean;
+  barcode?: string;
+  ocrData?: {
+    rawText: string;
+    cpf?: string;
+    rg?: string;
+    dataNascimento?: string;
+    sexo?: string;
+    nome?: string;
+    dataEmissao?: string;
+  };
+};
+
 type ScanDocumentSuccess = {
   status: ScanDocumentResponseStatus.Success;
-  scannedImages: string[];
+  scannedImages: ScannedImage[];
 };
 
 type ScanDocumentCancel = {
