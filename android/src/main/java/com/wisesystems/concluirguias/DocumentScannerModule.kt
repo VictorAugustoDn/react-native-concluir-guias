@@ -312,8 +312,14 @@ class DocumentScannerModule(reactContext: ReactApplicationContext) :
 
             // --- LÓGICA PARA NOME ---
             if (line.contains("NOME") && !line.contains("PAI") && !line.contains("MÃE") && nome == null) {
-                // Na CNH o nome geralmente é a linha seguinte à label NOME
-                if (i + 1 < allLines.size) {
+                // Pega tudo que vier depois da palavra "NOME" na mesma linha (Típico de RG)
+                val textAfterLabel = line.substringAfter("NOME").replace(":", "").replace(".", "").trim()
+
+                if (textAfterLabel.length > 5) {
+                    // É um RG! O nome estava na mesma linha.
+                    nome = textAfterLabel
+                } else if (i + 1 < allLines.size) {
+                    // É uma CNH! O nome está na linha de baixo.
                     val nextLine = allLines[i + 1]
                     val ignoreList = listOf("REPÚBLICA", "FEDERATIVA", "DOC", "IDENTIDADE")
                     if (nextLine.length > 5 && !ignoreList.any { nextLine.uppercase().contains(it) }) {
