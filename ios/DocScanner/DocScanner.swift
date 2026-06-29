@@ -3,38 +3,23 @@ import VisionKit
 import Vision
 
 /**
- This class uses VisonKit to start a document scan. It returns an array of objects containing URI, Barcode and Success status.
+ Scanner de documento via VisionKit, focado em ler o código de barras ITF no canto
+ superior direito (fluxo Concluir Guias). Retorna [{ uri, barcode, success }].
  */
 @available(iOS 13.0, *)
 public class DocScanner: NSObject, VNDocumentCameraViewControllerDelegate {
-    
-    /** @property viewController the document scanner gets called from this view controller */
-    private var viewController: UIViewController?
-    
-    /** @property successHandler a callback triggered when the user completes the document scan successfully */
-    // MUDANÇA: Retorna array de objetos (Dicionários) em vez de array de Strings
-    private var successHandler: ([[String: Any]]) -> Void
-    
-    /** @property errorHandler a callback triggered when there's an error */
-    private var errorHandler: (String) -> Void
-    
-    /** @property cancelHandler a callback triggered when the user cancels the document scan */
-    private var cancelHandler: () -> Void
-    
-    /** @property responseType determines the format response (base64 or file paths) */
-    private var responseType: String
 
-    /** @property croppedImageQuality the 0 - 100 quality of the cropped image */
+    private var viewController: UIViewController?
+    private var successHandler: ([[String: Any]]) -> Void
+    private var errorHandler: (String) -> Void
+    private var cancelHandler: () -> Void
+    private var responseType: String
     private var croppedImageQuality: Int
-    
-    /**
-     constructor for DocScanner
-     */
+
     public init(
         _ viewController: UIViewController? = nil,
-        // MUDANÇA NA ASSINATURA: [[String: Any]]
-        successHandler: @escaping ([[String: Any]]) -> Void = {_ in },
-        errorHandler: @escaping (String) -> Void = {_ in },
+        successHandler: @escaping ([[String: Any]]) -> Void = { _ in },
+        errorHandler: @escaping (String) -> Void = { _ in },
         cancelHandler: @escaping () -> Void = {},
         responseType: String = ResponseType.imageFilePath,
         croppedImageQuality: Int = 100
@@ -46,35 +31,15 @@ public class DocScanner: NSObject, VNDocumentCameraViewControllerDelegate {
         self.responseType = responseType
         self.croppedImageQuality = croppedImageQuality
     }
-    
+
     public convenience override init() {
         self.init(nil)
     }
-    
-    /**
-     opens the camera, and starts the document scan
-     */
-    public func startScan() {
-        if (!VNDocumentCameraViewController.isSupported) {
-            self.errorHandler("Document scanning is not supported on this device")
-            return
-        }
-        
-        DispatchQueue.main.async {
-            let documentCameraViewController = VNDocumentCameraViewController()
-            documentCameraViewController.delegate = self
-            self.viewController?.present(documentCameraViewController, animated: true)
-        }
-    }
-    
-    /**
-     opens the camera, and starts the document scan (Overload)
-     */
+
     public func startScan(
         _ viewController: UIViewController? = nil,
-        // MUDANÇA NA ASSINATURA: [[String: Any]]
-        successHandler: @escaping ([[String: Any]]) -> Void = {_ in },
-        errorHandler: @escaping (String) -> Void = {_ in },
+        successHandler: @escaping ([[String: Any]]) -> Void = { _ in },
+        errorHandler: @escaping (String) -> Void = { _ in },
         cancelHandler: @escaping () -> Void = {},
         responseType: String? = ResponseType.imageFilePath,
         croppedImageQuality: Int? = 100
@@ -85,113 +50,94 @@ public class DocScanner: NSObject, VNDocumentCameraViewControllerDelegate {
         self.cancelHandler = cancelHandler
         self.responseType = responseType ?? ResponseType.imageFilePath
         self.croppedImageQuality = croppedImageQuality ?? 100
-        
+
         self.startScan()
     }
-    
-    /**
-     This gets called on document scan success.
-     */
+
+    public func startScan() {
+        DispatchQueue.main.async {
+            guard VNDocumentCameraViewController.isSupported else {
+                self.errorHandler("Document scanning is not supported on this device")
+                return
+            }
+            let documentCameraViewController = VNDocumentCameraViewController()
+            documentCameraViewController.delegate = self
+            self.viewController?.present(documentCameraViewController, animated: true)
+        }
+    }
+
     public func documentCameraViewController(
         _ controller: VNDocumentCameraViewController,
         didFinishWith scan: VNDocumentCameraScan
     ) {
-        // Array de objetos para retorno
         var processedResults: [[String: Any]] = []
-        
-        // loop through all scanned pages
+
         for pageNumber in 0...scan.pageCount - 1 {
-            
             var scannedImage: UIImage = scan.imageOfPage(at: pageNumber)
-            
-            // 1. Tenta na imagem original
             var barcodeValue = scannedImage.findITFBarcodeInTopRightAreaSync()
 
-            // 2. Se não achou, tenta girar 90 graus (Simulando foto Landscape)
             if barcodeValue == nil {
-                if let rotatedImage = scannedImage.rotate(radians: .pi/2) { // 90 graus
-                    if let foundBarcode = rotatedImage.findITFBarcodeInTopRightAreaSync() {
-                        barcodeValue = foundBarcode
-                        // MUDANÇA 2: Atualizamos a imagem principal para ser a rotacionada
-                        scannedImage = rotatedImage 
-                    }
+                if let rotated = scannedImage.rotate(radians: .pi / 2),
+                   let found = rotated.findITFBarcodeInTopRightAreaSync() {
+                    barcodeValue = found
+                    scannedImage = rotated
+                }
+            }
+            if barcodeValue == nil {
+                if let rotated = scannedImage.rotate(radians: -.pi / 2),
+                   let found = rotated.findITFBarcodeInTopRightAreaSync() {
+                    barcodeValue = found
+                    scannedImage = rotated
+                }
+            }
+            if barcodeValue == nil {
+                if let rotated = scannedImage.rotate(radians: .pi),
+                   let found = rotated.findITFBarcodeInTopRightAreaSync() {
+                    barcodeValue = found
+                    scannedImage = rotated
                 }
             }
 
-            // 3. Se ainda não achou, tenta girar -90 graus (Lado oposto)
-            if barcodeValue == nil {
-                if let rotatedImage = scannedImage.rotate(radians: -.pi/2) { // -90 graus
-                    if let foundBarcode = rotatedImage.findITFBarcodeInTopRightAreaSync() {
-                        barcodeValue = foundBarcode
-                        // MUDANÇA 2: Atualiza a imagem principal
-                        scannedImage = rotatedImage
-                    }
-                }
-            }
-
-            // 4. Se ainda não achou, tenta 180 graus (De ponta cabeça - acontece muito com guia na mesa)
-            if barcodeValue == nil {
-                if let rotatedImage = scannedImage.rotate(radians: .pi) { // 180 graus
-                    if let foundBarcode = rotatedImage.findITFBarcodeInTopRightAreaSync() {
-                        barcodeValue = foundBarcode
-                        // MUDANÇA 2: Atualiza a imagem principal
-                        scannedImage = rotatedImage
-                    }
-                }
-            }
-
-            let barcodeSuccess = barcodeValue != nil
-            
-            // 2. Converter imagem
-            guard let scannedDocumentImage: Data = scannedImage
-                .jpegData(compressionQuality: CGFloat(self.croppedImageQuality) / CGFloat(100)) else {
+            guard let imageData = scannedImage.jpegData(compressionQuality: CGFloat(croppedImageQuality) / 100.0) else {
                 goBackToPreviousView(controller)
-                self.errorHandler("Unable to get scanned document in jpeg format")
+                errorHandler("Unable to get scanned document in jpeg format")
                 return
             }
-            
-            var documentIdentifier: String = ""
-            
+
+            var documentIdentifier = ""
             switch responseType {
-                case ResponseType.base64:
-                    documentIdentifier = scannedDocumentImage.base64EncodedString()
-                case ResponseType.imageFilePath:
-                    do {
-                        let croppedImageFilePath = FileUtil().createImageFile(pageNumber)
-                        try scannedDocumentImage.write(to: croppedImageFilePath)
-                        documentIdentifier = croppedImageFilePath.absoluteString
-                    } catch {
-                        goBackToPreviousView(controller)
-                        self.errorHandler("Unable to save scanned image: \(error.localizedDescription)")
-                        return
-                    }
-                default:
+            case ResponseType.base64:
+                documentIdentifier = imageData.base64EncodedString()
+            case ResponseType.imageFilePath:
+                do {
+                    let path = FileUtil().createImageFile(pageNumber)
+                    try imageData.write(to: path)
+                    documentIdentifier = path.absoluteString
+                } catch {
                     goBackToPreviousView(controller)
-                    self.errorHandler("responseType must be base64 or imageFilePath")
+                    errorHandler("Unable to save scanned image: \(error.localizedDescription)")
                     return
+                }
+            default:
+                goBackToPreviousView(controller)
+                errorHandler("responseType must be base64 or imageFilePath")
+                return
             }
-            
-            // 3. Adicionar ao array de objetos (Estrutura do Backup)
+
             processedResults.append([
                 "uri": documentIdentifier,
                 "barcode": barcodeValue as Any,
-                "success": barcodeSuccess
+                "success": barcodeValue != nil
             ])
-            
         }
-        
-        // exit document scanner
+
         goBackToPreviousView(controller)
-        
-        // return scanned document results (Passa o array de objetos)
         self.successHandler(processedResults)
     }
-    
-    public func documentCameraViewControllerDidCancel(
-        _ controller: VNDocumentCameraViewController
-    ) {
+
+    public func documentCameraViewControllerDidCancel(_ controller: VNDocumentCameraViewController) {
         goBackToPreviousView(controller)
-        self.cancelHandler()
+        cancelHandler()
     }
 
     public func documentCameraViewController(
@@ -199,9 +145,9 @@ public class DocScanner: NSObject, VNDocumentCameraViewControllerDelegate {
         didFailWithError error: Error
     ) {
         goBackToPreviousView(controller)
-        self.errorHandler(error.localizedDescription)
+        errorHandler(error.localizedDescription)
     }
-    
+
     private func goBackToPreviousView(_ controller: VNDocumentCameraViewController) {
         DispatchQueue.main.async {
             controller.dismiss(animated: true)
@@ -211,25 +157,19 @@ public class DocScanner: NSObject, VNDocumentCameraViewControllerDelegate {
 
 extension UIImage {
     func rotate(radians: Float) -> UIImage? {
-        var newSize = CGRect(origin: CGPoint.zero, size: self.size).applying(CGAffineTransform(rotationAngle: CGFloat(radians))).integral.size
-        // Garante que o tamanho seja inteiro
-        newSize.width = floor(newSize.width);
-        newSize.height = floor(newSize.height);
+        var newSize = CGRect(origin: .zero, size: size)
+            .applying(CGAffineTransform(rotationAngle: CGFloat(radians)))
+            .integral.size
+        newSize.width = floor(newSize.width)
+        newSize.height = floor(newSize.height)
 
-        UIGraphicsBeginImageContextWithOptions(newSize, false, self.scale)
+        UIGraphicsBeginImageContextWithOptions(newSize, false, scale)
         let context = UIGraphicsGetCurrentContext()!
-
-        // Move a origem para o centro da imagem para girar
-        context.translateBy(x: newSize.width/2, y: newSize.height/2)
-        // Rotaciona
+        context.translateBy(x: newSize.width / 2, y: newSize.height / 2)
         context.rotate(by: CGFloat(radians))
-        
-        // Desenha a imagem antiga
-        self.draw(in: CGRect(x: -self.size.width/2, y: -self.size.height/2, width: self.size.width, height: self.size.height))
-
-        let newImage = UIGraphicsGetImageFromCurrentImageContext()
+        draw(in: CGRect(x: -size.width / 2, y: -size.height / 2, width: size.width, height: size.height))
+        let result = UIGraphicsGetImageFromCurrentImageContext()
         UIGraphicsEndImageContext()
-
-        return newImage
+        return result
     }
 }
