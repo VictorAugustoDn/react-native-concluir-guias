@@ -86,17 +86,10 @@ export type ScannedImage = {
   };
 };
 
-type ScanDocumentSuccess = {
-  status: 'success';
+export type ScanDocumentResponse = {
+  status: string;
   scannedImages: ScannedImage[];
 };
-
-type ScanDocumentCancel = {
-  status: 'cancel';
-  scannedImages: [];
-};
-
-export type ScanDocumentResponse = ScanDocumentSuccess | ScanDocumentCancel;
 
 /**
  * TurboModule spec.
