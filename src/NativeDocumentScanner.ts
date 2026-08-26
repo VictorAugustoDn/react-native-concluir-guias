@@ -87,12 +87,12 @@ export type ScannedImage = {
 };
 
 type ScanDocumentSuccess = {
-  status: ScanDocumentResponseStatus.Success;
+  status: 'success';
   scannedImages: ScannedImage[];
 };
 
 type ScanDocumentCancel = {
-  status: ScanDocumentResponseStatus.Cancel;
+  status: 'cancel';
   scannedImages: [];
 };
 
