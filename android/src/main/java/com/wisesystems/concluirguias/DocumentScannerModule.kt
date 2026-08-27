@@ -58,7 +58,7 @@ class DocumentScannerModule(reactContext: ReactApplicationContext) :
     private var pendingMaxDocs: Int? = null
 
     override fun scanDocument(options: ReadableMap, promise: Promise) {
-        val activity = currentActivity as? ComponentActivity
+        val activity = getCurrentActivity() as? ComponentActivity
         if (activity == null) {
             promise.reject("no_activity", "Activity not available or not a ComponentActivity")
             return
